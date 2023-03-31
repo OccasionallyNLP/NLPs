@@ -105,7 +105,7 @@ if __name__=='__main__':
             batch = data[batch_start:batch_start+batch_size]
             model_input = tokenizer(batch, padding='max_length', truncation=True, max_length = args.context_max_length, return_tensors='pt').to(device)
             output = model(**model_input)
-            result.extend(output['score'].cpu()[:,1]) 
+            result.append(output['score'].cpu()[:,1]) 
     result = torch.cat(result).reshape(n_data,-1).tolist() # n_data*n_docs -> n_data, n_docs
     retrieved_ctxs_ids = sorting(result_ids, result)
     for i,j in zip(test_data,retrieved_ctxs_ids):
