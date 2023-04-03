@@ -18,7 +18,7 @@ from nltk.util import ngrams
 # # accuracy
 # # 개수에 따른 accuracy
 
-def hit(actual:List[int],predict:List[List[int]])->Dict[float]:
+def hit(actual:List[int],predict:List[List[int]])->dict:
     from collections import defaultdict
     result = defaultdict(list)
     for i,j in zip(actual, predict):

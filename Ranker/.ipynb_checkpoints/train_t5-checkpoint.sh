@@ -1,1 +1,0 @@
-python train_t5.py --output_dir ../../output/ranker/klue_koquard --train_data ../../data/dpr/train_w_negative.jsonl --val_data ../../data/dpr/test_w_negative.jsonl --logging_term 100 --epochs 5 --eval_epoch 1 --batch_size 16 --warmup 200 --ptm_path KETI-AIR/ke-t5-small --context_max_length 512 --patience 2

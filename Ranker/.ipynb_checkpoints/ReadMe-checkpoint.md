@@ -21,3 +21,50 @@ negative는 BM25로 가져온 context/passage에서 answer가 없는 context/pas
 ### inference 시
 retrieved context/passage는 100개  
 output으로는 5개 
+
+### listwise ranker 
+```
+[
+  {
+	"question": "....",
+	"answers": ["...", "...", "..."],
+	"positive_ctxs": [{
+		"title": "...",
+		"context": "...."
+	}],
+	"positive_ctxs_ids": [..,..,..],
+	"retrieved_ctxs": [{
+		"title": "...",
+		"context": "...."
+	},{
+		"title": "...",
+		"context": "...."
+	}, ...],
+    "retrieved_ctxs_ids": ["..."]
+  }
+]
+```
+n_docs가 만약에 retrieved_ctxs의 개수보다 작다면, sampling
+
+### pointwise ranker(TODO)
+```
+[
+  {
+	"question": "....",
+	"answers": ["...", "...", "..."],
+	"positive_ctxs": [{
+		"title": "...",
+		"context": "...."
+	}],
+	"positive_ctxs_ids": [..,..,..],
+	"retrieved_ctxs": [{
+		"title": "...",
+		"context": "...."
+	},{
+		"title": "...",
+		"context": "...."
+	}, ...],
+    "retrieved_ctxs_ids": ["..."]
+  }
+]
+```

@@ -12,6 +12,9 @@ import argparse
 import logging
 import copy
 
+def compute_hash(text):
+    return hashlib.md5(text.encode()).hexdigest()
+
 # data jsonl save, load
 def save_jsonl(address,data,name):
     f = open(os.path.join(address,name+'.jsonl'),'w',encoding = 'utf-8')
@@ -80,6 +83,7 @@ def get_linear_scheduler(total, warmup, optimizer, dataloader):
         scheduler = lambda step: min(1/warmup*step,1.)
     else:
         scheduler = lambda step: min(warmup*step,1.)
+        
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = scheduler)
     return scheduler
 
