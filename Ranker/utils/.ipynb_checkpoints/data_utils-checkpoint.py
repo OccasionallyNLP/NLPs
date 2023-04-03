@@ -87,7 +87,7 @@ class ListWiseRankerDataset(Dataset):
                 encoder_inputs.append(b['question']+' '+b['positive_ctxs'][0]['title']+' '+b['positive_ctxs'][0]['context'] \
                                       if self.include_title else b['question']+' '+b['positive_ctxs'][0]['context'])
                 labels.append(1)
-                negatives = random.choices(b['retrieved_ctxs'], k=self.n_docs)
+                negatives = random.sample(b['retrieved_ctxs'], k=self.n_docs)
                 negatives = [i for i in negatives if i['doc_id']!=b['positive_ctxs_ids'][0]][:self.n_docs-1]
                 for i in negatives:
                     encoder_inputs.append(b['question']+' '+i['title']+' '+i['context'] \
