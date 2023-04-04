@@ -22,6 +22,10 @@ negative는 BM25로 가져온 context/passage에서 answer가 없는 context/pas
 retrieved context/passage는 100개  
 output으로는 5개 
 
+### data를 불러올 때 시간이 오래 걸림.
+- huggingface datasets 활용
+- question, positive_ctxs_ids : \t 구분자, retrieved_ctxs_ids : \t 구분자
+- load 한 후에 tagging 작업 진행.
 ### listwise ranker 
 ```
 [
