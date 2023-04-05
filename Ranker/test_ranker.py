@@ -46,11 +46,7 @@ def get_args():
     args = parser.parse_args()
     return args
     
-def sorting(retrieved_ids:List[List[int]], scores:List[List[float]])->List[List[int]]:
-    final_result = [[(i_i,j_i) for i_i,j_i in zip(i,j)] for i,j in zip(retrieved_ids,scores)]
-    final_result = [sorted(i, key=lambda i : i[1], reverse=True) for i in final_result]
-    retrieved_ctxs_ids = [[j[0] for j in i] for i in final_result]
-    return retrieved_ctxs_ids
+s
 
 if __name__=='__main__':
     args  = get_args()
