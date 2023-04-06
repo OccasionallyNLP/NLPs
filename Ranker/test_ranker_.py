@@ -102,9 +102,8 @@ if __name__=='__main__':
         for batch in tqdm(test_dataloader,desc='test'):
             batch = {i:j.to(device) for i,j in batch.items()}
             output = model(**batch)
-            result.extend(output['score'].cpu().tolist()) 
+            result.append(output['score'].cpu().tolist()) 
         retrieved_ctxs_ids = sorting(result_ids, result)
-        assert len(test_data) == len(retrieved_ctxs_ids)
         for i,j in zip(test_data,retrieved_ctxs_ids):
             i['reranked_retrieved_ctxs_ids'] = j
         save_jsonl(args.output_dir, test_data, 'test_data_reranked_%d'%args.shard_id)    

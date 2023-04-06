@@ -25,6 +25,7 @@ from utils.distributed_utils import *
 from utils.utils import *
 from utils.metrics import *
 from model import *
+from datasets import load_dataset
 
 def get_args():
     # parser
@@ -55,6 +56,9 @@ def get_args():
     parser.add_argument('--accumulation_step', type=int, default = 1) # 221124 추가
     # PTM model
     parser.add_argument('--ptm_path', type=str)
+    # further train
+    parser.add_argument('--model_path', type=str)
+    
     # model
     parser.add_argument('--context_max_length', type=int)
     
@@ -217,24 +221,23 @@ if __name__=='__main__':
     # tokenizer, model load
     ########################################################################################
     tokenizer = T5Tokenizer.from_pretrained(args.ptm_path, extra_ids = 0)
-    
-    # tokenizer.add_special_tokens(
-    #     {
-    #         "additional_special_tokens" : [AddedToken(BYTE_TOKENS[t]) for t in BYTE_TOKENS]
-    #     }
-    # )
-
     config = T5Config.from_pretrained(args.ptm_path)
-    t5 = T5EncoderModel.from_pretrained(args.ptm_path)
+    if args.model_path is None:
+        t5 = T5EncoderModel.from_pretrained(args.ptm_path)
+    else:
+        model_state_dict = torch.load(args.model_path, map_location='cpu')
+        
     model_type = T5EncoderModel
     if args.rank_type == 'point':
         model = Ranker(config, 'mean', model_type)
         
     elif args.rank_type == 'list':
         model = ListWiseRanker(config, 'mean', model_type)
-        
-    model.init_pretrained_model(t5.state_dict())
     
+    if args.model_path is None:    
+        model.init_pretrained_model(t5.state_dict())
+    else:
+        model.load_state_dict(model_state_dict)
     ########################################################################################
     # distributed 관련
     if args.distributed:
@@ -251,7 +254,7 @@ if __name__=='__main__':
     
     # data
     ########################################################################################
-    train_data = load_jsonl(args.train_data)[:10]
+    train_data = load_jsonl(args.train_data)
     if args.rank_type == 'point':
         train_dataset = RankerDataset(args, train_data, tokenizer)
     elif args.rank_type == 'list':
@@ -259,7 +262,7 @@ if __name__=='__main__':
     train_sampler = DistributedSampler(train_dataset) if args.distributed else RandomSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset,batch_size = args.batch_size, sampler = train_sampler, collate_fn = train_dataset._collate_fn)
     
-    val_data = load_data(args.val_data, args.local_rank, args.distributed)[:10]
+    val_data = load_data(args.val_data, args.local_rank, args.distributed)
     val_dataset = ListWiseRankerDataset(val_data, tokenizer, None, args.include_title, args.context_max_length,  True)
         
     val_sampler = SequentialSampler(val_dataset)
