@@ -1,6 +1,6 @@
 import math
 from typing import TypeVar, Optional, Iterator
-
+from collections import Counter
 import torch
 import torch.nn as nn
 from torch.utils.data import *
@@ -40,6 +40,6 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         # weights
         n_class = Counter([i['label'] for i in self.dataset]) 
         class_weight = {i:1/j for i,j in n_class.items()}
-        weights = [class_weight[i['label']] for i in self.dataset]
+        weights = torch.DoubleTensor([class_weight[i['label']] for i in self.dataset])
         rand_tensor = torch.multinomial(weights, self.num_samples, self.replacement, generator=None)
         yield from iter(rand_tensor.tolist())

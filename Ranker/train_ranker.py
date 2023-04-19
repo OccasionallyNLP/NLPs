@@ -272,7 +272,7 @@ if __name__=='__main__':
         else:
             n_class = Counter([i['label'] for i in train_dataset]) 
             class_weight = {i:1/j for i,j in n_class.items()}
-            weight = [class_weight[i['label']] for i in train_dataset]
+            weight =  torch.DoubleTensor([class_weight[i['label']] for i in train_dataset])
             train_sampler = WeightedRandomSampler(weight, len(train_dataset), replacement=True)
     else:
         if args.distributed:
