@@ -12,7 +12,8 @@ import re
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset,DataLoader,DistributedSampler,RandomSampler,SequentialSampler
+from torch.utils.data import Dataset,DataLoader,DistributedSampler,RandomSampler,SequentialSampler, WeightedRandomSampler
+from utils.samplers import DistributedWeightedRandomSampler
 from torch.cuda.amp import autocast
 from torch.cuda.amp import GradScaler
 import numpy as np
@@ -26,6 +27,7 @@ from utils.utils import *
 from utils.metrics import *
 from model import *
 from datasets import load_dataset
+from collections import Counter
 
 def get_args():
     # parser
@@ -39,7 +41,7 @@ def get_args():
     parser.add_argument('--val_data', type=str, help='val data 위치')
     parser.add_argument('--docs', type=str, help = 'docs 위치')
     parser.add_argument('--include_title', type=str2bool)
-    parser.add_argument('--n_docs', type=int, default = 100)
+    parser.add_argument('--n_docs', type=int)
     parser.add_argument('--rank_type', type=str, default = 'point', choices=['point','pair','list'])
     
     # logging 관련
@@ -54,6 +56,8 @@ def get_args():
     parser.add_argument('--decay', type=float, default = 0.05)
     parser.add_argument('--fp16', type=str2bool, default = False)
     parser.add_argument('--accumulation_step', type=int, default = 1) # 221124 추가
+    parser.add_argument('--weighted_sampling', type=str2bool, default = False) # 221124 추가
+    
     # PTM model
     parser.add_argument('--ptm_path', type=str)
     # further train
@@ -84,18 +88,16 @@ def evaluation(args, model, tokenizer, eval_dataloader):
             if output.get('loss') is not None:
                 loss = output['loss'].item()
                 total_loss+=loss
-            # output scores - bs,n_docs -> bs
-            predict = output['score'].argmax(dim=-1).cpu().tolist()
+            if args.rank_type == 'point':
+                predict = (output['score']>=0.5).cpu().long().tolist()
+                actual = data['labels'].cpu().tolist()
+            elif args.rank_type == 'list':
+                # output scores - bs,n_docs -> bs
+                predict = output['score'].argmax(dim=-1).cpu().tolist()
+                actual = data['labels'].argmax(dim=-1).cpu().tolist()
             Predict.extend(predict)
-            # if args.rank_type == 'point':
-            #     Actual.extend(data['labels'].cpu().tolist())
-            # elif args.rank_type == 'list':
-            Actual.extend(data['labels'].argmax(dim=-1).cpu().tolist())
+            Actual.extend(actual)
     acc = []
-    # print('predict')
-    # print(Predict)
-    # print('actual')
-    # print(Actual)
     for i,j in zip(Predict, Actual):
         acc.append(i==j)
     acc = sum(acc)
@@ -140,6 +142,7 @@ def train():
         #train
         for data in iter_bar:
             optimizer.zero_grad()            
+            check.extend(data['labels'].tolist()) # XXX
             data = {i:j.cuda() for i,j in data.items()}
             if args.fp16:
                 with autocast():
@@ -172,7 +175,7 @@ def train():
                     logger1.info(iter_bar)
                     logger2.info(iter_bar)
             global_step+=1
-        
+            
         # epoch 당 기록.
         if args.local_rank in [-1,0]:
             logger1.info(iter_bar)
@@ -229,7 +232,7 @@ if __name__=='__main__':
         
     model_type = T5EncoderModel
     if args.rank_type == 'point':
-        model = Ranker(config, 'mean', model_type)
+        model = PointWiseRanker(config, 'mean', model_type)
         
     elif args.rank_type == 'list':
         model = ListWiseRanker(config, 'mean', model_type)
@@ -255,21 +258,42 @@ if __name__=='__main__':
     # data
     ########################################################################################
     train_data = load_jsonl(args.train_data)
+    
     if args.rank_type == 'point':
-        train_dataset = RankerDataset(args, train_data, tokenizer)
+        train_dataset = PointWiseRankerDataset(train_data, tokenizer, args.include_title, args.context_max_length )
     elif args.rank_type == 'list':
         train_dataset = ListWiseRankerDataset(train_data, tokenizer, args.n_docs, args.include_title, args.context_max_length,  True)
-    train_sampler = DistributedSampler(train_dataset) if args.distributed else RandomSampler(train_dataset)
+    
+    # weighted_sampling & distributed
+    if args.weighted_sampling:
+        if args.distributed:
+            train_sampler = DistributedWeightedRandomSampler(train_dataset, replacement=True)
+            
+        else:
+            n_class = Counter([i['label'] for i in train_dataset]) 
+            class_weight = {i:1/j for i,j in n_class.items()}
+            weight = [class_weight[i['label']] for i in train_dataset]
+            train_sampler = WeightedRandomSampler(weight, len(train_dataset), replacement=True)
+    else:
+        if args.distributed:
+            train_sampler = DistributedSampler(train_dataset) 
+        else:
+            train_sampler = RandomSampler(train_dataset)
+            
     train_dataloader = DataLoader(train_dataset,batch_size = args.batch_size, sampler = train_sampler, collate_fn = train_dataset._collate_fn)
     
     val_data = load_data(args.val_data, args.local_rank, args.distributed)
-    val_dataset = ListWiseRankerDataset(val_data, tokenizer, None, args.include_title, args.context_max_length,  True)
+    
+    if args.rank_type == 'point':
+        val_dataset = PointWiseRankerDataset(val_data, tokenizer, args.include_title, args.context_max_length)
+    elif args.rank_type == 'list':
+        val_dataset = ListWiseRankerDataset(val_data, tokenizer, None, args.include_title, args.context_max_length,  True)
         
     val_sampler = SequentialSampler(val_dataset)
     val_dataloader = DataLoader(val_dataset,batch_size = args.batch_size, sampler = val_sampler, collate_fn = val_dataset._collate_fn)
     ########################################################################################
     
-     ########################################################################################
+    ########################################################################################
     # train
     ########################################################################################
     train()

@@ -24,12 +24,12 @@ from transformers import PreTrainedModel, RobertaModel, BertModel, T5EncoderMode
 ##
 
 # point wise ranker
-class Ranker(PreTrainedModel):
+class PointWiseRanker(PreTrainedModel):
     def __init__(self, config, pool, model_class):
         super().__init__(config)
         self.pool = pool
         self.pretrained_model = model_class(config) # T5 Enc model
-        self.fc = nn.Linear(config.d_model, 2)
+        self.fc = nn.Linear(config.d_model, 1)
 
     def init_pretrained_model(self, state_dict):
         self.pretrained_model.load_state_dict(state_dict) 
@@ -47,10 +47,12 @@ class Ranker(PreTrainedModel):
             out = out.sum(dim=1) # bs, dim
             s = attention_mask.sum(-1, keepdim=True) # bs, 1
             out = out/(s+1e-12)
-        scores = self.fc(out) # bs, 2
+            
+        scores = F.sigmoid(self.fc(out).squeeze(1)) # bs, 1 -> bs
         
         if 'labels' in kwargs:
-            loss = F.cross_entropy(scores, kwargs['labels'])
+            loss_fn = nn.BCELoss()
+            loss = loss_fn(scores, kwargs['labels'].float())
             return dict(loss=loss, score = scores)
         else:
             return dict(score = scores)

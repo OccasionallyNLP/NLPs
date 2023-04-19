@@ -41,24 +41,27 @@ import copy
 #     def __len__(self):
 #         return len(self.data)
 
-class RankerDataset(Dataset):
-    def __init__(self, args, data:List[dict], tokenizer):
+class PointWiseRankerDataset(Dataset):
+    def __init__(self, data:List[dict], tokenizer, include_title:bool, context_max_length:int):
         super().__init__()
         self.data = data
-        self.args = args
         self.tokenizer = tokenizer
+        self.include_title = include_title
+        self.context_max_length = context_max_length
         
     def _collate_fn(self, batch):
         encoder_inputs = []
         labels = []
         for b in batch:
-            # positive
-            encoder_inputs.append(b['question']+' '+b['context'])
+            if self.include_title:
+                encoder_inputs.append(b['question']+' '+b['title']+' '+b['context'])
+            else:
+                encoder_inputs.append(b['question']+' '+b['context'])
             labels.append(b['label'])            
-        if self.args.context_max_length is None:
+        if self.context_max_length is None:
             encoder_inputs = self.tokenizer(encoder_inputs, padding='longest',return_tensors = 'pt')
         else:
-            encoder_inputs = self.tokenizer(encoder_inputs, padding=True, truncation=True, max_length=self.args.context_max_length, return_tensors = 'pt')
+            encoder_inputs = self.tokenizer(encoder_inputs, padding=True, truncation=True, max_length=self.context_max_length, return_tensors = 'pt')
         return dict(input_ids = encoder_inputs.input_ids, attention_mask = encoder_inputs.attention_mask, labels = T(labels))
     
     def __getitem__(self, index):
@@ -112,48 +115,3 @@ class ListWiseRankerDataset(Dataset):
     
     def __len__(self):
         return len(self.data)
-   
-# class ListWiseRandomRankerDataset(Dataset):
-#     def __init__(self, data:List[dict], docs:List[dict], n_docs, tokenizer):
-#         super().__init__()
-#         self.data = data
-#         self.args = args
-#         self.tokenizer = tokenizer
-#         self.docs = docs
-#         self.n_docs = n_docs
-        
-#     def _collate_fn(self, batch):
-#         encoder_inputs = []
-#         labels = []
-#         bs = len(batch)
-#         for b in batch:
-#             # data element - question, positive_ctxs, positive_ctxs_ids
-#             if self.args.include_title:
-#                 encoder_inputs.append(b['question']+' '+b['positive_ctxs'][0]['title']+' '+['positive_ctxs'][0]['context'] )
-#             else:
-#                 encoder_inputs.append(b['question']+' '+['positive_ctxs'][0]['context'])
-#             labels.append(1)
-#             negative_pool = random.choices(self.docs, k=self.n_docs)
-#             negatives = [i for i in negative_pool if i['doc_id']!=b['positive_ctxs_ids'][0]][:self.n_docs-1]
-#             if self.args.include_title:
-#                 for i in negatives:
-#                     encoder_inputs.append(b['question']+' '+i['title']+' '+i['context'] )
-#             else:
-#                 for i in negatives:
-#                     encoder_inputs.append(b['question']+' '+i['context'])
-#             labels.extend([0]*(self.n_docs-1))
-#             assert len(negatives) == self.n_docs
-                        
-#         if self.args.context_max_length is None:
-#             encoder_inputs = self.tokenizer(encoder_inputs, padding='longest',return_tensors = 'pt')
-#         else:
-#             encoder_inputs = self.tokenizer(encoder_inputs, padding=True, truncation=True, max_length=self.args.context_max_length, return_tensors = 'pt')
-#         return dict(input_ids = encoder_inputs.input_ids.reshape(bs,self.n_docs,-1), attention_mask = encoder_inputs.attention_mask.reshape(bs,self.n_docs,-1), labels = T(labels).reshape(bs,self.n_docs))
-    
-#     def __getitem__(self, index):
-#         return self.data[index]
-    
-#     def __len__(self):
-#         return len(self.data)
-    
-    
