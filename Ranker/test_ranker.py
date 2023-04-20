@@ -45,8 +45,6 @@ def get_args():
     parser.add_argument('--local_rank', type=int, default = -1)
     args = parser.parse_args()
     return args
-    
-s
 
 if __name__=='__main__':
     args  = get_args()
@@ -62,7 +60,7 @@ if __name__=='__main__':
     tokenizer = T5Tokenizer.from_pretrained(check_point_args['ptm_path'])
     model_type = T5EncoderModel
     if check_point_args['rank_type']=='point':
-        model = Ranker(config, 'mean', model_type)
+        model = PointWiseRanker(config, 'mean', model_type)
     elif check_point_args['rank_type']=='list':
         model = ListWiseRanker(config, 'mean', model_type)
     model.load_state_dict(torch.load(os.path.join(check_point_args['output_dir'],'best_model')))
@@ -84,12 +82,15 @@ if __name__=='__main__':
     ###########################################################################################
     # data
     ###########################################################################################
-    test_data = load_jsonl(args.test_data)[:10]
+    test_data = load_jsonl(args.test_data)
     shard_size = int(len(test_data) / args.n_shards)
     start_idx = args.shard_id * shard_size
     end_idx = start_idx + shard_size
-    test_data = test_data[start_idx:end_idx][:10]
-    test_dataset = ListWiseRankerDataset(test_data, tokenizer, None, check_point_args['include_title'], args.context_max_length,  False)
+    test_data = test_data[start_idx:end_idx]
+    if args.rank_type == 'list':
+        test_dataset = ListWiseRankerDataset(test_data, tokenizer, None, check_point_args['include_title'], args.context_max_length,  False)
+    elif args.rank_type == 'point':
+        test_dataset = PointWiseRankerDataset(test_data, tokenizer, check_point_args['include_title'], args.context_max_length)
     test_sampler = SequentialSampler(test_dataset)
     test_dataloader = DataLoader(test_dataset, batch_size = args.batch_size, sampler = test_sampler, collate_fn = test_dataset._collate_fn)
     ###########################################################################################
