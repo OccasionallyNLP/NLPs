@@ -1,0 +1,3 @@
+#NGPUS=1
+#python -m torch.distributed.launch --nproc_per_node $NGPUS train_t5.py --test_name --output_dir ../output/question_generation/korquad --train_data ../data/MRC data/korquad_train.jsonl --val_data ../data/MRC data/korquad_dev.jsonl --logging_term 100 --epochs 20 --eval_epoch 1 --batch_size 8 --warmup 200 --ptm_path KETI-AIR/ke-t5-base --question_max_length 128
+python test_ranker.py --output_dir ../../output/ranker/list/klue --test_data ../../data/dpr/klue/dev.jsonl --batch_size 1 --check_point_dir ../../output/ranker/list/klue --context_max_length 512 

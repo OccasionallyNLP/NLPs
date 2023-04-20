@@ -46,6 +46,12 @@ def get_args():
     args = parser.parse_args()
     return args
 
+def sorting(retrieved_ids, scores):
+    final_result = [[(i_i,j_i) for i_i, j_i in zip(i,j)] for i,j in zip(retrieved_ids, scores)]
+    final_result = [sorted(i, key = lambda i : i[1], reverse=True) for i in final_result]
+    retrieved_ctxs_ids = [[j[0] for j in i] for i in final_result]
+    return retrieved_ctxs_ids
+
 if __name__=='__main__':
     args  = get_args()
     seed_everything(42)
@@ -87,22 +93,24 @@ if __name__=='__main__':
     start_idx = args.shard_id * shard_size
     end_idx = start_idx + shard_size
     test_data = test_data[start_idx:end_idx]
-    if args.rank_type == 'list':
-        test_dataset = ListWiseRankerDataset(test_data, tokenizer, None, check_point_args['include_title'], args.context_max_length,  False)
-    elif args.rank_type == 'point':
-        test_dataset = PointWiseRankerDataset(test_data, tokenizer, check_point_args['include_title'], args.context_max_length)
+    
+    # just list wise when evaluates
+    test_dataset = ListWiseRankerDataset(test_data, tokenizer, None, check_point_args['include_title'], args.context_max_length,  False)
+    
     test_sampler = SequentialSampler(test_dataset)
     test_dataloader = DataLoader(test_dataset, batch_size = args.batch_size, sampler = test_sampler, collate_fn = test_dataset._collate_fn)
     ###########################################################################################
     result_ids = [i['retrieved_ctxs_ids'] for i in test_data]
     n_data = len(test_data)
-    # point wise
+    # list wise
     model.eval()
     result = [] # bs, n_data
     with torch.no_grad():
         for batch in tqdm(test_dataloader,desc='test'):
             batch = {i:j.to(device) for i,j in batch.items()}
             output = model(**batch)
+            # list wise - bs, n_docs
+            # point wise - bs, 
             result.extend(output['score'].cpu().tolist()) 
         retrieved_ctxs_ids = sorting(result_ids, result)
         assert len(test_data) == len(retrieved_ctxs_ids)

@@ -1,0 +1,20 @@
+23.04.18 
+data statistics
+
+korquad 1.0 -> 제외
+Counter({1: 66181})
+
+mrc
+Counter({1: 340088, 0: 100244})
+
+book
+Counter({1: 665000, 0: 285000})
+
+admin
+Counter({1: 234239, 0: 18450})
+
+news
+Counter({1: 341934, 0: 18000})
+
+klue
+Counter({1: 16045, 0: 7350})
