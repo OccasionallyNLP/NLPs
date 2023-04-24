@@ -80,7 +80,7 @@ if __name__=='__main__':
         model.to(device)
     # multi gpu
     else:
-        device = torch.device(f'cuda:{local_rank}')
+        device = torch.device(f'cuda:{args.local_rank}')
         torch.cuda.set_device(device) 
         model.to(device)
     ###########################################################################################

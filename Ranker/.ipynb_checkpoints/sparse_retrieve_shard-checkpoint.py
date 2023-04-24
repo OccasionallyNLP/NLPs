@@ -35,15 +35,13 @@ class BM25OK(object):
         result = [(self.index_id_to_db_id[i], doc_scores[i]) for i in sorted_idx]
         return result
     
-def list_retrieve(query_list):
-    c_proc = mp.current_process()
-    for i in tqdm(query_list, desc = f'retrieve in {c_proc.name}'):
+    # line by line으로 저장
+    def list_retrieve(self, query_list):
+        # line by line 으로 저장까지 하게끔.
         output = {}
-        output[i['q_id']] = bm25.retrieve(i['question'])[args.top_n]
-        cur_path = os.path.join(args.output_dir, c_proc.name)
-        os.makedirs(cur_path, exist_ok = True)
-        with open(os.path.join(cur_path, i['q_id']),'wb') as f:
-            json.dump(output, f)
+        for i in tqdm(query_list):
+            output[i['q_id']] = self.retrieve(i['question'])
+        return output
     
 def get_args():
     # parser
@@ -65,18 +63,23 @@ if __name__ == '__main__':
     contexts = load_jsonl(args.contexts_path)
     doc_id_to_list_id = {i['doc_id']:_ for _,i in enumerate(contexts)}
     data = load_jsonl(args.data_path)
-    query_list = [dict(q_id = _, question = i['question']) for _,i in enumerate(data)]
-    
     bm25 = BM25(contexts, args.include_title, lambda i : i.split())
-    
+    query_list = [dict(q_id = _, question = i['question']) for _,i in enumerate(data)]
     # multi processing
     pool = Pool(args.num_cores)
-    a = np.array_split(query_list_i, args.num_cores)
+    a = np.array_split(query_list, args.num_cores)
     a = list(map(lambda i:i.tolist(), a))
-    d = pool.map(list_retrieve, a)
-    print('============== multi-processing map is done ======================')
+    d = pool.map(bm25.list_retrieve, a)
     pool.close()
-    print('============== multi-processing close is done ======================')
     pool.join()
-    print('============== multi-processing join is done ======================')
-    
+    output = {}
+    for i in list(d):
+        # dict
+        for key,value in i.items():
+            output[key]=value
+    print(time.time()-now)
+    for _, i in enumerate(data):
+        i['retrieved_ctxs_ids'] = [j[0] for j in output[_]]
+        i['retrieved_ctxs'] = [contexts[doc_id_to_list_id[j[0]]] for j in output[_]]
+    os.makedirs(args.output_path, exist_ok=True)
+    save_jsonl(args.output_path, output, args.name)
