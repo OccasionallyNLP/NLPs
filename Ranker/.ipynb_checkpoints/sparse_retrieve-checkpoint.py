@@ -11,6 +11,7 @@ from multiprocessing import Pool
 import time
 import argparse
 from rank_bm25 import BM25Okapi
+import multiprocessing as mp
 
 class BM25OK(object):
     def __init__(self, contexts, include_title, tokenizer):
@@ -67,14 +68,15 @@ if __name__ == '__main__':
     data = load_jsonl(args.data_path)
     query_list = [dict(q_id = _, question = i['question']) for _,i in enumerate(data)]
     
-    bm25 = BM25(contexts, args.include_title, lambda i : i.split())
+    bm25 = BM25OKnvidia-(contexts, args.include_title, lambda i : i.split())
     
     # multi processing
     pool = Pool(args.num_cores)
-    a = np.array_split(query_list_i, args.num_cores)
+    a = np.array_split(query_list, args.num_cores)
     a = list(map(lambda i:i.tolist(), a))
+    print('============== multi-processing starts ======================')
     d = pool.map(list_retrieve, a)
-    print('============== multi-processing map is done ======================')
+    
     pool.close()
     print('============== multi-processing close is done ======================')
     pool.join()
