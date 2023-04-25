@@ -41,9 +41,9 @@ def list_retrieve(query_list):
     for i in tqdm(query_list, desc = f'retrieve in {c_proc.name}'):
         output = {}
         output[i['q_id']] = bm25.retrieve(i['question'])[args.top_n]
-        cur_path = os.path.join(args.output_dir, c_proc.name)
+        cur_path = os.path.join(args.output_path, c_proc.name)
         os.makedirs(cur_path, exist_ok = True)
-        with open(os.path.join(cur_path, i['q_id']),'wb') as f:
+        with open(os.path.join(cur_path, str(i['q_id'])),'w') as f:
             json.dump(output, f)
     
 def get_args():
