@@ -1,1 +1,1 @@
-python test.py --local_rank 0 --shard_id 0 --n_shards 1000 --test_data D:/jupyter_notebook/wiki_data_qa/common_sense_qa.jsonl.jsonl --output_dir ../../output/qa --check_point_dir ../../output/qa --answer_max_length 64 --context_max_length 512 --batch_size 8 --name test 
+python test.py --local_rank 0 --shard_id 0 --n_shards 100 --test_data D:/jupyter_notebook/wiki_data_qa/common_sense_qa.jsonl.jsonl --output_dir ../../output/qa --check_point_dir ../../output/qa --answer_max_length 32 --context_max_length 512 --batch_size 8 --name test 

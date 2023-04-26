@@ -97,13 +97,13 @@ def evaluation(args, model, tokenizer, eval_data, eval_dataloader):
                     eos_token_id = tokenizer.eos_token_id,
                     early_stopping = True,
                     do_sample = False,
-                    num_beams = 20,
+                    num_beams = 5,
     )
             predicts = tokenizer.batch_decode(outputs, skip_special_tokens = True)
             bs = data['input_ids'].size(0)
             cnt+=bs
             predict_result.extend(predicts)
-            
+    cnt = len(eval_data)        
     total_f1 = []
     total_em = []
     
@@ -112,6 +112,7 @@ def evaluation(args, model, tokenizer, eval_data, eval_dataloader):
         response = normalize_answer(data['answer'])
         total_f1.append(unigram_f1_score(predict, response, None))
         total_em.append(int(predict==response))
+        
     return dict(total_f1 = total_f1, total_loss = total_loss, total_em = total_em, cnt=cnt), predict_result
 
 def merge_scores(args, scores):
@@ -156,7 +157,7 @@ def train():
             data = {i:j.cuda() for i,j in data.items()}
             if args.fp16:
                 with autocast():
-                    loss = model.forward(**data)['loss']
+                    loss = model.forward(**data).loss
                     loss = loss / args.accumulation_step
                     scaler.scale(loss).backward()
                     if (step+1)%args.accumulation_step==0:
@@ -166,7 +167,7 @@ def train():
                         scaler.update()
                         optimizer.zero_grad()
             else:
-                loss = model.forward(**data)['loss']
+                loss = model.forward(**data).loss
                 loss = loss / args.accumulation_step
                 loss.backward()
                 if (step+1)%args.accumulation_step==0:
@@ -233,11 +234,11 @@ if __name__=='__main__':
         
     # tokenizer, model load
     ########################################################################################
-    tokenizer = T5Tokenizer.from_pretrained(args.ptm_path, extra_ids = 0)
-    config = T5Config.from_pretrained(args.ptm_path)
+    tokenizer = T5Tokenizer.from_pretrained(args.ptm_path)
     if args.model_path is None:
         model = T5ForConditionalGeneration.from_pretrained(args.ptm_path)
     else:
+        config = T5Config.from_pretrained(args.ptm_path)
         model = T5ForConditionalGeneration(config)
         model_state_dict = torch.load(args.model_path, map_location='cpu')
         model.load_state_dict(model_state_dict)
@@ -257,15 +258,17 @@ if __name__=='__main__':
     
     # data
     ########################################################################################
-    train_data = load_jsonl(args.train_data)[:100]
+    train_data = load_jsonl(args.train_data)[:1000]
     train_dataset = QADataset(train_data, tokenizer, args.include_title, args.context_max_length )
+    
     if args.distributed:
         train_sampler = DistributedSampler(train_dataset) 
     else:
         train_sampler = RandomSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset,batch_size = args.batch_size, sampler = train_sampler, collate_fn = train_dataset._collate_fn)
     
-    val_data = load_data(args.val_data, args.local_rank, args.distributed)[:100]
+    #val_data = load_data(args.val_data, args.local_rank, args.distributed)[:100]
+    val_data = load_jsonl(args.train_data)[:1000]
     val_dataset = QADataset(val_data, tokenizer, args.include_title, args.context_max_length )
     val_sampler = SequentialSampler(val_dataset)
     val_dataloader = DataLoader(val_dataset,batch_size = args.batch_size, sampler = val_sampler, collate_fn = val_dataset._collate_fn)
