@@ -112,7 +112,7 @@ def evaluation(args, model, tokenizer, eval_data, eval_dataloader):
         response = normalize_answer(data['answer'])
         total_f1.append(unigram_f1_score(predict, response, None))
         total_em.append(int(predict==response))
-        return dict(total_f1 = total_f1, total_loss = total_loss, total_em = total_em, cnt=cnt), predict_result
+    return dict(total_f1 = total_f1, total_loss = total_loss, total_em = total_em, cnt=cnt), predict_result
 
 def merge_scores(args, scores):
     if args.distributed:
@@ -240,8 +240,6 @@ if __name__=='__main__':
     else:
         model = T5ForConditionalGeneration(config)
         model_state_dict = torch.load(args.model_path, map_location='cpu')
-        
-    if args.model_path is not None:    
         model.load_state_dict(model_state_dict)
     ########################################################################################
     # distributed 관련
